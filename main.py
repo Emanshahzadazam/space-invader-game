@@ -21,11 +21,12 @@ YELLOW = (255, 255, 100)
 GREEN = (80, 255, 120)
 PURPLE = (200, 100, 255)
 DARK_BLUE = (10, 15, 40)
+MID_BLUE = (25, 35, 80)
+SOFT_GRAY = (190, 190, 210)
 
 font = pygame.font.SysFont("Consolas", 22, bold=True)
 big_font = pygame.font.SysFont("Consolas", 56, bold=True)
 small_font = pygame.font.SysFont("Consolas", 16)
-
 clock = pygame.time.Clock()
 
 HIGH_SCORE_FILE = "highscore.txt"
@@ -44,6 +45,16 @@ def load_high_score():
 def save_high_score(score):
     with open(HIGH_SCORE_FILE, "w") as f:
         f.write(str(score))
+
+
+# ---------------- BACKGROUND GRADIENT ----------------
+def draw_gradient_background():
+    for y in range(HEIGHT):
+        blend = y / HEIGHT
+        r = int(DARK_BLUE[0] * (1 - blend) + MID_BLUE[0] * blend)
+        g = int(DARK_BLUE[1] * (1 - blend) + MID_BLUE[1] * blend)
+        b = int(DARK_BLUE[2] * (1 - blend) + MID_BLUE[2] * blend)
+        pygame.draw.line(screen, (r, g, b), (0, y), (WIDTH, y))
 
 
 # ---------------- STARFIELD ----------------
@@ -97,9 +108,27 @@ class Particle:
 
 
 # ---------------- DRAW HELPERS ----------------
+def draw_glow_text(text, font_obj, color, x, y):
+    glow = font_obj.render(text, True, color)
+    glow_surface = pygame.Surface((glow.get_width() + 10, glow.get_height() + 10), pygame.SRCALPHA)
+    for dx in range(5):
+        for dy in range(5):
+            glow_surface.blit(glow, (dx, dy))
+    glow_surface.set_alpha(40)
+    screen.blit(glow_surface, (x - 5, y - 5))
+    main = font_obj.render(text, True, color)
+    screen.blit(main, (x, y))
+
+
+def draw_panel(x, y, w, h, border_color=CYAN):
+    panel = pygame.Surface((w, h), pygame.SRCALPHA)
+    panel.fill((0, 0, 0, 140))
+    screen.blit(panel, (x, y))
+    pygame.draw.rect(screen, border_color, (x, y, w, h), 2, border_radius=10)
+
+
 def draw_player(surf, rect):
     cx = rect.centerx
-    # body
     pygame.draw.polygon(surf, BLUE, [
         (cx, rect.top - 8),
         (rect.left, rect.bottom),
@@ -110,9 +139,7 @@ def draw_player(surf, rect):
         (rect.left + 10, rect.bottom - 4),
         (rect.right - 10, rect.bottom - 4)
     ])
-    # cockpit
     pygame.draw.circle(surf, WHITE, (cx, rect.centery + 2), 4)
-    # engines glow
     glow = random.randint(4, 8)
     pygame.draw.circle(surf, ORANGE, (rect.left + 8, rect.bottom), glow)
     pygame.draw.circle(surf, YELLOW, (rect.right - 8, rect.bottom), glow)
@@ -122,20 +149,16 @@ def draw_enemy(surf, rect, t, kind=0):
     bob = math.sin(t * 0.1 + rect.x * 0.05) * 2
     x, y = rect.x, rect.y + bob
     w, h = rect.width, rect.height
-    if kind == 0:
-        color = RED
-    elif kind == 1:
-        color = PURPLE
-    else:
-        color = ORANGE
-    # body
+
+    color = RED if kind == 0 else PURPLE if kind == 1 else ORANGE
+
     pygame.draw.ellipse(surf, color, (x, y, w, h))
-    # eyes
+    pygame.draw.ellipse(surf, WHITE, (x + 3, y + 3, w - 6, h - 10), 1)
     pygame.draw.circle(surf, WHITE, (int(x + w * 0.3), int(y + h * 0.5)), 3)
     pygame.draw.circle(surf, WHITE, (int(x + w * 0.7), int(y + h * 0.5)), 3)
     pygame.draw.circle(surf, BLACK, (int(x + w * 0.3), int(y + h * 0.5)), 1)
     pygame.draw.circle(surf, BLACK, (int(x + w * 0.7), int(y + h * 0.5)), 1)
-    # legs
+
     leg_offset = int(math.sin(t * 0.2) * 2)
     for i in range(3):
         lx = int(x + (i + 1) * w / 4)
@@ -154,27 +177,27 @@ def draw_glow_rect(surf, rect, color):
 def menu(starfield, high_score):
     t = 0
     while True:
-        screen.fill(DARK_BLUE)
+        draw_gradient_background()
         starfield.update_and_draw(screen)
         t += 1
 
-        title = big_font.render("SPACE INVADER", True, CYAN)
-        screen.blit(title, (WIDTH // 2 - title.get_width() // 2,
-                            120 + math.sin(t * 0.05) * 5))
+        draw_glow_text("SPACE INVADER", big_font, CYAN,
+                       WIDTH // 2 - 190, int(120 + math.sin(t * 0.05) * 5))
+        draw_glow_text("BY EMAN SHAHZAD", font, PURPLE,
+                       WIDTH // 2 - 110, 200)
 
-        sub = font.render("BY EMAN SHAHZAD", True, PURPLE)
-        screen.blit(sub, (WIDTH // 2 - sub.get_width() // 2, 200))
-
+        draw_panel(170, 255, 260, 55, YELLOW)
         hs = font.render(f"High Score: {high_score}", True, YELLOW)
-        screen.blit(hs, (WIDTH // 2 - hs.get_width() // 2, 280))
+        screen.blit(hs, (WIDTH // 2 - hs.get_width() // 2, 272))
 
         if (t // 30) % 2 == 0:
+            draw_panel(150, 360, 300, 55, CYAN)
             play = font.render("Press ENTER to Start", True, WHITE)
-            screen.blit(play, (WIDTH // 2 - play.get_width() // 2, 380))
+            screen.blit(play, (WIDTH // 2 - play.get_width() // 2, 378))
 
         controls = small_font.render(
-            "Arrows/A-D = Move    SPACE = Shoot    Q = Quit", True, (180, 180, 200))
-        screen.blit(controls, (WIDTH // 2 - controls.get_width() // 2, 500))
+            "Arrows/A-D = Move    SPACE = Shoot    Q = Quit", True, SOFT_GRAY)
+        screen.blit(controls, (WIDTH // 2 - controls.get_width() // 2, 520))
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -233,7 +256,6 @@ def play_round(starfield, high_score):
     spawn_wave(level)
 
     game_over = False
-    win_animation = 0
     player_flash = 0
 
     running = True
@@ -241,14 +263,12 @@ def play_round(starfield, high_score):
         clock.tick(60)
         t += 1
 
-        screen.fill(DARK_BLUE)
+        draw_gradient_background()
         starfield.update_and_draw(screen)
 
-        # ground
         pygame.draw.rect(screen, (20, 60, 40), (0, 670, WIDTH, 30))
         pygame.draw.line(screen, GREEN, (0, 670), (WIDTH, 670), 2)
 
-        # ---------- EVENTS ----------
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return None
@@ -273,7 +293,6 @@ def play_round(starfield, high_score):
         if player_flash > 0:
             player_flash -= 1
 
-        # ---------- BULLETS ----------
         if not game_over:
             for bullet in bullets[:]:
                 bullet.y -= 10
@@ -292,7 +311,6 @@ def play_round(starfield, high_score):
                         score += 10 * (e_kind + 1)
                         break
 
-        # ---------- ENEMY MOVE ----------
         if not game_over and enemies:
             edge = False
             for e_rect, _ in enemies:
@@ -304,7 +322,6 @@ def play_round(starfield, high_score):
                 for e_rect, _ in enemies:
                     e_rect.y += 18
 
-        # ---------- ENEMY SHOOT ----------
         if not game_over and enemies:
             enemy_shoot_timer -= 1
             if enemy_shoot_timer <= 0:
@@ -326,7 +343,6 @@ def play_round(starfield, high_score):
                 if lives <= 0:
                     game_over = True
 
-        # ---------- COLLISION ----------
         for e_rect, _ in enemies:
             if e_rect.colliderect(player) or e_rect.bottom >= 670:
                 lives = 0
@@ -335,14 +351,12 @@ def play_round(starfield, high_score):
                     particles.append(Particle(player.centerx, player.centery, ORANGE))
                 break
 
-        # ---------- LEVEL CLEAR ----------
         if not enemies and not game_over:
             level += 1
             enemy_speed = min(3.0, 1.0 + level * 0.3)
             spawn_wave(level)
             score += 50
 
-        # ---------- PARTICLES ----------
         for p in particles[:]:
             p.update()
             if p.life <= 0:
@@ -350,7 +364,6 @@ def play_round(starfield, high_score):
             else:
                 p.draw(screen)
 
-        # ---------- DRAW ----------
         for bullet in bullets:
             draw_glow_rect(screen, bullet, YELLOW)
         for eb in enemy_bullets:
@@ -362,33 +375,26 @@ def play_round(starfield, high_score):
         if not game_over and (player_flash == 0 or player_flash % 4 < 2):
             draw_player(screen, player)
 
-        # ---------- HUD ----------
-        pygame.draw.rect(screen, (0, 0, 0, 180), (0, 0, WIDTH, 50))
-        s = pygame.Surface((WIDTH, 50), pygame.SRCALPHA)
-        s.fill((0, 0, 0, 150))
-        screen.blit(s, (0, 0))
-        pygame.draw.line(screen, CYAN, (0, 50), (WIDTH, 50), 1)
+        # Better HUD
+        draw_panel(10, 8, 580, 42, CYAN)
+        screen.blit(font.render(f"SCORE {score}", True, WHITE), (25, 17))
+        screen.blit(font.render(f"HI {max(high_score, score)}", True, YELLOW), (220, 17))
+        screen.blit(font.render(f"LV {level}", True, GREEN), (390, 17))
 
-        screen.blit(font.render(f"SCORE {score}", True, WHITE), (10, 15))
-        screen.blit(font.render(f"HI {max(high_score, score)}", True, YELLOW),
-                    (220, 15))
-        screen.blit(font.render(f"LV {level}", True, GREEN), (350, 15))
-
-        # lives as little ships
         for i in range(lives):
-            x = 450 + i * 35
+            x = 500 + i * 28
             pygame.draw.polygon(screen, BLUE, [
-                (x + 12, 12), (x, 32), (x + 24, 32)
+                (x + 10, 14), (x, 30), (x + 20, 30)
             ])
 
-        # ---------- GAME OVER OVERLAY ----------
         if game_over:
             overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-            overlay.fill((0, 0, 0, 180))
+            overlay.fill((0, 0, 0, 170))
             screen.blit(overlay, (0, 0))
 
+            draw_panel(100, 180, 400, 300, PURPLE)
             msg = big_font.render("GAME OVER", True, RED)
-            screen.blit(msg, (WIDTH // 2 - msg.get_width() // 2, 220))
+            screen.blit(msg, (WIDTH // 2 - msg.get_width() // 2, 215))
 
             for i, line in enumerate([
                 f"Final Score: {score}",
@@ -396,16 +402,15 @@ def play_round(starfield, high_score):
                 f"Level Reached: {level}",
             ]):
                 txt = font.render(line, True, WHITE)
-                screen.blit(txt, (WIDTH // 2 - txt.get_width() // 2, 320 + i * 30))
+                screen.blit(txt, (WIDTH // 2 - txt.get_width() // 2, 320 + i * 35))
 
             if (t // 30) % 2 == 0:
-                r = font.render("Press R to Restart  |  Q to Quit", True, CYAN)
-                screen.blit(r, (WIDTH // 2 - r.get_width() // 2, 450))
+                restart = font.render("Press R to Restart  |  Q to Quit", True, YELLOW)
+                screen.blit(restart, (WIDTH // 2 - restart.get_width() // 2, 420))
 
         pygame.display.update()
 
 
-# ---------------- START ----------------
 if __name__ == "__main__":
     try:
         game()
